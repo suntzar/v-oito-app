@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.suntzar.voito" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>V-Oito</name>
+    <description>Sample Apache Cordova App</description>
+    <author email="dev@cordova.apache.org" href="https://cordova.apache.org">
+        Apache Cordova Team
+    </author>
+    <!-- Ponto de entrada do App -->
+    <content src="index.html" />
+
+    <!-- Permissões de acesso à rede -->
+    <access origin="*" />
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
+
+    <!-- Plugins essenciais (vamos adicioná-los) -->
+
+    <platform name="android">
+        <allow-intent href="market:*" />
+
+        <!-- Esta linha torna a barra de status uma cor sólida (não transparente) -->
+        <preference name="StatusBarOverlaysWebView" value="false" />
+    
+        <!-- Esta linha define a cor da barra de status -->
+        <!-- Use a cor de fundo principal do seu app -->
+        <preference name="StatusBarBackgroundColor" value="#262626" /> 
+
+        <!-- Esta linha define a cor dos ícones (relógio, bateria, etc.) -->
+        <!-- 'lightcontent' para ícones brancos/claros, 'default' para ícones escuros -->
+        <preference name="StatusBarStyle" value="lightcontent" />
+
+        <!-- CONFIGURAÇÃO DO TECLADO -->
+        <!-- Esta linha faz com que o app redimensione (encolha) quando o teclado aparece -->
+        <preference name="KeyboardResize" value="true" />
+    </platform>
+</widget>
