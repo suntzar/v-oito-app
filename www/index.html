@@ -254,6 +254,31 @@
             let model; // Armazena a instância do modelo do Gemini
             let selectedImageFiles = []; // Array para guardar os arquivos de imagem selecionados para upload
 
+            // --- 3.5. Define as cores das barras do sistema nativo. ---
+            // Esta função só será executada quando o app estiver rodando no Cordova.
+            function setSystemBarColors() {
+                // Verifica se os plugins do Cordova estão disponíveis
+                if (window.StatusBar && window.navigationbar) {
+                    console.log("Plugins de UI do Cordova detectados. Aplicando cores...");
+
+                    // 1. Define a cor da Barra de Status (topo)
+                    // Use a cor da sua navbar superior: #2e2e2e
+                    window.StatusBar.backgroundColorByHexString("#2e2e2e");
+
+                    // 2. Define a cor da Barra de Navegação (embaixo)
+                    // Use a cor da sua área de input: #2a2a2a
+                    window.navigationbar.backgroundColorByHexString("#2a2a2a");
+
+                    // Opcional, mas recomendado:
+                    // O segundo argumento 'true' ativa o 'light' mode para a barra de navegação,
+                    // que deixa os botões escuros. Use 'false' para botões claros.
+                    // Para o seu fundo escuro, `false` é o correto para ter botões claros.
+                    window.navigationbar.backgroundColorByHexString("#2a2a2a", false);
+                } else {
+                    console.log("Rodando no navegador, pulando customização de cores nativas.");
+                }
+            }
+
             // --- 4. FUNÇÕES CENTRAIS DE UI ---
 
             /**
@@ -606,6 +631,20 @@
 
                 updateDynamicContent();
                 messageInput.focus();
+                
+                document.addEventListener(
+                    "deviceready",
+                    () => {
+                        console.log("Dispositivo pronto. Inicializando funcionalidades nativas.");
+
+                        // Chama a nossa nova função para colorir as barras
+                        setSystemBarColors();
+
+                        // O resto da sua inicialização pode continuar aqui se depender de plugins
+                        // ou pode ficar fora se não depender. Por segurança, vamos manter aqui.
+                    },
+                    false
+                );
             }
 
             // Ponto de entrada: espera o DOM estar pronto para iniciar a aplicação.
