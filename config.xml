@@ -23,7 +23,7 @@
     
         <!-- Esta linha define a cor da barra de status -->
         <!-- Use a cor de fundo principal do seu app -->
-        <preference name="StatusBarBackgroundColor" value="#262626" /> 
+        <preference name="StatusBarBackgroundColor" value="#2e2e2e" />  
 
         <!-- Esta linha define a cor dos ícones (relógio, bateria, etc.) -->
         <!-- 'lightcontent' para ícones brancos/claros, 'default' para ícones escuros -->
@@ -32,5 +32,8 @@
         <!-- CONFIGURAÇÃO DO TECLADO -->
         <!-- Esta linha faz com que o app redimensione (encolha) quando o teclado aparece -->
         <preference name="KeyboardResize" value="true" />
+
+        <!-- ESTA É A COR DA BARRA DE NAVEGAÇÃO (BOTÕES VOLTAR/HOME) -->
+        <preference name="NavigationBarColor" value="#2e2e2e" />
     </platform>
 </widget>
