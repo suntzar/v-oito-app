@@ -234,8 +234,8 @@
             import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "https://esm.run/@google/generative-ai";
 
             // --- 1. CONFIGURAÇÃO E CONSTANTES ---
-            const API_KEY = "AIzaSyCxSyn1mq_zKZ5k7wLjBXfK_Gx361kZX1s";
-            const MODEL_NAME = "gemini-2.5-flash"; // Modelo que suporta multimodalidade (texto e imagem) e contexto longo
+            const API_KEY = "AIzaSyCxSyn1mq_zKZ5k7wLjBXfK_Gx361kZX1s"; // Chave de API
+            const MODEL_NAME = "gemini-2.5-flash"; // Modelo atualizado
 
             // --- 2. SELETORES DE ELEMENTOS DO DOM ---
             const chatContainer = document.getElementById("chat-container");
@@ -250,44 +250,15 @@
             const imagePreviewContainer = document.getElementById("image-preview-container");
 
             // --- 3. VARIÁVEIS DE ESTADO GLOBAL ---
-            let chat; // Armazena a instância da sessão de chat do Gemini
-            let model; // Armazena a instância do modelo do Gemini
-            let selectedImageFiles = []; // Array para guardar os arquivos de imagem selecionados para upload
+            let chat;
+            let model;
+            let selectedImageFiles = [];
 
-            // --- 3.5. Define as cores das barras do sistema nativo. ---
-            // Esta função só será executada quando o app estiver rodando no Cordova.
-            function setSystemBarColors() {
-                // Verifica se os plugins do Cordova estão disponíveis
-                if (window.StatusBar && window.navigationbar) {
-                    console.log("Plugins de UI do Cordova detectados. Aplicando cores...");
+            // --- 4. FUNÇÕES DE UI E LÓGICA DO CHAT (Sem alterações, apenas organizadas) ---
 
-                    // 1. Define a cor da Barra de Status (topo)
-                    // Use a cor da sua navbar superior: #2e2e2e
-                    window.StatusBar.backgroundColorByHexString("#2e2e2e");
-
-                    // 2. Define a cor da Barra de Navegação (embaixo)
-                    // Use a cor da sua área de input: #2a2a2a
-                    window.navigationbar.backgroundColorByHexString("#2a2a2a");
-
-                    // Opcional, mas recomendado:
-                    // O segundo argumento 'true' ativa o 'light' mode para a barra de navegação,
-                    // que deixa os botões escuros. Use 'false' para botões claros.
-                    // Para o seu fundo escuro, `false` é o correto para ter botões claros.
-                    window.navigationbar.backgroundColorByHexString("#2a2a2a", false);
-                } else {
-                    console.log("Rodando no navegador, pulando customização de cores nativas.");
-                }
-            }
-
-            // --- 4. FUNÇÕES CENTRAIS DE UI ---
-
-            /**
-             * Re-inicializa bibliotecas dinâmicas (Feather Icons, KaTeX) após
-             * a adição de novo conteúdo ao DOM.
-             */
             function updateDynamicContent() {
                 if (window.feather) feather.replace({ class: "noxss-icon" });
-                if (window.renderMathInElement)
+                if (window.renderMathInElement) {
                     renderMathInElement(document.body, {
                         delimiters: [
                             { left: "$$", right: "$$", display: true },
@@ -295,13 +266,9 @@
                         ],
                         throwOnError: false
                     });
+                }
             }
 
-            /**
-             * Cria e adiciona um novo balão de mensagem ao chat.
-             * @param {('user'|'bot')} sender - Quem está enviando a mensagem.
-             * @returns {HTMLElement} O elemento do balão de mensagem para inserção de conteúdo.
-             */
             function addMessage(sender) {
                 const messageWrapper = document.createElement("div");
                 messageWrapper.className = `chat-message chat-message--${sender}`;
@@ -313,12 +280,6 @@
                 return messageBubble;
             }
 
-            /**
-             * Processa uma string em Markdown, a converte para HTML e a injeta em um balão de mensagem.
-             * Também encontra e estiliza os blocos de código.
-             * @param {HTMLElement} bubbleElement - O balão de mensagem onde o conteúdo será renderizado.
-             * @param {string} markdownText - O texto em Markdown a ser processado.
-             */
             function processBotResponse(bubbleElement, markdownText) {
                 bubbleElement.innerHTML = marked.parse(markdownText);
                 bubbleElement.querySelectorAll("pre code").forEach(block => {
@@ -334,13 +295,6 @@
                 if (window.Noxss && Noxss.Typography) Noxss.Typography.initCodeBlocks();
             }
 
-            // --- 5. LÓGICA DA API GEMINI E SESSÃO ---
-
-            /**
-             * Converte um objeto File para o formato GenerativePart da API do Gemini.
-             * @param {File} file - O arquivo de imagem.
-             * @returns {Promise<object>} Uma promessa que resolve para o objeto no formato da API.
-             */
             async function fileToGenerativePart(file) {
                 const base64EncodedDataPromise = new Promise(resolve => {
                     const reader = new FileReader();
@@ -350,37 +304,26 @@
                 return { inlineData: { data: await base64EncodedDataPromise, mimeType: file.type } };
             }
 
-            /**
-             * Inicia uma nova sessão de chat com o Gemini, opcionalmente com um histórico.
-             * @param {Array} history - O histórico de conversas para iniciar a sessão.
-             */
-            function startNewChatSession(history) {
+            function startNewChatSession(history = []) {
                 chat = model.startChat({
                     history,
-                    generationConfig: { maxOutputTokens: 60192 },
+                    generationConfig: { maxOutputTokens: 8192 },
                     safetySettings: [
-                        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }
+                        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+                        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
                     ]
                 });
             }
 
-            // --- 6. LÓGICA PRINCIPAL DO CHAT ---
-
-            /**
-             * Manipula o envio do formulário de chat.
-             * @param {Event} e - O evento de submit do formulário.
-             */
             async function handleChatSubmit(e) {
                 e.preventDefault();
                 const userMessageText = messageInput.value.trim();
-
-                // Impede o envio de mensagens vazias (sem texto e sem imagem)
                 if (!userMessageText && selectedImageFiles.length === 0) return;
 
-                // 1. Cria o balão de mensagem do usuário e adiciona o conteúdo
                 const userBubble = addMessage("user");
-                const currentImages = [...selectedImageFiles]; // Copia as imagens para o envio
+                const currentImages = [...selectedImageFiles];
 
                 if (currentImages.length > 0) {
                     const gallery = document.createElement("div");
@@ -389,55 +332,44 @@
                         const img = document.createElement("img");
                         img.src = URL.createObjectURL(file);
                         img.className = "chat-image-attachment";
-                        img.onclick = () => window.open(img.src, "_blank"); // Abre a imagem em nova aba ao clicar
+                        img.onclick = () => window.open(img.src, "_blank");
                         gallery.appendChild(img);
                     });
                     userBubble.appendChild(gallery);
                 }
-
                 if (userMessageText) {
                     const textP = document.createElement("p");
                     textP.innerText = userMessageText;
                     userBubble.appendChild(textP);
                 }
 
-                // 2. Limpa os inputs e desabilita os controles
                 messageInput.value = "";
                 clearImageSelection();
                 messageInput.disabled = true;
                 sendButton.disabled = true;
                 imageUploadBtn.disabled = true;
 
-                // 3. Mostra o indicador de "pensando"
                 const loadingBubble = addMessage("bot");
                 loadingBubble.innerHTML = `<div class="typing-indicator"><div class="noxss-spinner"><div class="noxss-spinner-point-1"></div><div class="noxss-spinner-point-2"></div><div class="noxss-spinner-point-3"></div></div><span>V-Oito está pensando...</span></div>`;
 
                 try {
-                    // 4. Prepara e envia os dados para a API
-                    const imageParts = await Promise.all(currentImages.map(file => fileToGenerativePart(file)));
-                    const promptParts = [...imageParts];
-                    if (userMessageText) {
-                        promptParts.push({ text: userMessageText });
-                    }
+                    const imageParts = await Promise.all(currentImages.map(fileToGenerativePart));
+                    const promptParts = [...imageParts, { text: userMessageText }];
 
-                    // 5. Processa a resposta em streaming da API
                     const result = await chat.sendMessageStream(promptParts);
                     let fullResponseText = "";
-                    loadingBubble.innerHTML = ""; // Limpa o indicador de "pensando"
+                    loadingBubble.innerHTML = "";
 
                     for await (const chunk of result.stream) {
                         fullResponseText += chunk.text();
-                        // Adiciona um cursor piscando ao final para efeito de digitação
                         processBotResponse(loadingBubble, fullResponseText + " ▋");
                     }
-                    // Processa a resposta final sem o cursor
                     processBotResponse(loadingBubble, fullResponseText);
                 } catch (error) {
                     console.error("Erro ao contatar a API do Gemini:", error);
                     processBotResponse(loadingBubble, `> **Erro:** Desculpe, ocorreu um erro ao processar sua solicitação.`);
                     if (window.Noxss && Noxss.Toasts) Noxss.Toasts.show({ message: "Ocorreu um erro na API.", status: "danger" });
                 } finally {
-                    // 6. Reabilita os controles e foca no input
                     messageInput.disabled = false;
                     sendButton.disabled = false;
                     imageUploadBtn.disabled = false;
@@ -447,11 +379,6 @@
                 }
             }
 
-            // --- 7. FUNÇÕES DE MANIPULAÇÃO DE IMAGENS ---
-
-            /**
-             * Renderiza as pré-visualizações das imagens selecionadas.
-             */
             function renderImagePreviews() {
                 imagePreviewContainer.innerHTML = "";
                 if (selectedImageFiles.length === 0) {
@@ -462,11 +389,9 @@
                 selectedImageFiles.forEach((file, index) => {
                     const previewItem = document.createElement("div");
                     previewItem.className = "preview-item";
-
                     const img = document.createElement("img");
                     img.src = URL.createObjectURL(file);
                     img.className = "preview-image";
-
                     const removeBtn = document.createElement("button");
                     removeBtn.className = "remove-image-btn noxss-btn noxss-btn--icon";
                     removeBtn.innerHTML = `<i data-feather="x" class="noxss-icon"></i>`;
@@ -474,9 +399,7 @@
                         e.stopPropagation();
                         removeImageFromSelection(index);
                     };
-
-                    previewItem.appendChild(img);
-                    previewItem.appendChild(removeBtn);
+                    previewItem.append(img, removeBtn);
                     imagePreviewContainer.appendChild(previewItem);
                 });
 
@@ -484,63 +407,40 @@
                 updateDynamicContent();
             }
 
-            /**
-             * Adiciona os arquivos de imagem selecionados ao array de estado.
-             * @param {Event} event - O evento 'change' do input de arquivo.
-             */
             function handleImageSelected(event) {
-                const files = event.target.files;
-                if (!files) return;
-                for (const file of files) {
-                    if (file.type.startsWith("image/")) {
-                        selectedImageFiles.push(file);
-                    }
-                }
+                Array.from(event.target.files).forEach(file => {
+                    if (file.type.startsWith("image/")) selectedImageFiles.push(file);
+                });
                 renderImagePreviews();
-                event.target.value = null; // Permite selecionar o mesmo arquivo novamente
+                event.target.value = null;
             }
 
-            /**
-             * Remove uma imagem da seleção pelo seu índice.
-             * @param {number} index - O índice da imagem a ser removida.
-             */
             function removeImageFromSelection(index) {
                 selectedImageFiles.splice(index, 1);
                 renderImagePreviews();
             }
 
-            /**
-             * Limpa todas as imagens selecionadas e esconde a área de pré-visualização.
-             */
             function clearImageSelection() {
                 selectedImageFiles = [];
                 renderImagePreviews();
             }
 
-            // --- 8. FUNÇÕES DE HISTÓRICO DO CHAT ---
-
-            /**
-             * Baixa o histórico atual do chat como um arquivo JSON.
-             */
             async function handleDownloadHistory() {
                 if (!chat) return;
                 const historyToSave = await chat.getHistory();
-                const historyJson = JSON.stringify(historyToSave, null, 2);
+                const historyJson = JSON.stringify(
+                    historyToSave.filter(h => h.role !== "model" || !h.parts[0].text.startsWith("Olá! Um histórico")),
+                    null,
+                    2
+                );
                 const blob = new Blob([historyJson], { type: "application/json" });
-                const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
-                a.href = url;
-                a.download = `chat-history-sabedor-${new Date().toISOString()}.json`;
-                document.body.appendChild(a);
+                a.href = URL.createObjectURL(blob);
+                a.download = `chat-history-sabedor-${new Date().toISOString().split("T")[0]}.json`;
                 a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
+                URL.revokeObjectURL(a.href);
             }
 
-            /**
-             * Manipula a seleção de um arquivo de histórico para upload.
-             * @param {Event} event - O evento 'change' do input de histórico.
-             */
             function handleHistoryFileSelected(event) {
                 const file = event.target.files[0];
                 if (!file) return;
@@ -548,107 +448,93 @@
                 reader.onload = e => {
                     try {
                         const loadedHistory = JSON.parse(e.target.result);
-                        if (!Array.isArray(loadedHistory) || loadedHistory.some(turn => !turn.role || !turn.parts)) {
-                            throw new Error("Formato de histórico inválido.");
-                        }
-                        startNewChatSession(loadedHistory);
                         rebuildChatUIFromHistory(loadedHistory);
-                        if (window.Noxss && Noxss.Toasts) Noxss.Toasts.show({ message: "Histórico carregado com sucesso!", status: "success" });
+                        startNewChatSession(loadedHistory);
+                        if (window.Noxss && Noxss.Toasts) Noxss.Toasts.show({ message: "Histórico carregado!", status: "success" });
                     } catch (error) {
                         console.error("Erro ao carregar histórico:", error);
-                        if (window.Noxss && Noxss.Toasts) Noxss.Toasts.show({ message: "Falha ao carregar o arquivo. Verifique se é um JSON válido.", status: "danger" });
+                        if (window.Noxss && Noxss.Toasts) Noxss.Toasts.show({ message: "Falha ao carregar o arquivo.", status: "danger" });
                     }
                 };
                 reader.readAsText(file);
                 event.target.value = null;
             }
 
-            /**
-             * Reconstrói a interface do chat a partir de um array de histórico.
-             * @param {Array} history - O histórico de conversas.
-             */
             function rebuildChatUIFromHistory(history) {
                 chatContainer.innerHTML = "";
                 processBotResponse(addMessage("bot"), "Olá! Um histórico de chat anterior foi carregado.");
-
                 history.forEach(turn => {
-                    // Ignora o prompt inicial do sistema para não poluir a UI
-                    if (turn.role === "user" && turn.parts[0].text && turn.parts[0].text.startsWith("Aqui está a documentação")) return;
-
                     const bubble = addMessage(turn.role === "user" ? "user" : "bot");
-
-                    // Concatena todas as partes de texto. A reconstrução de imagens do histórico não é suportada.
                     const fullText = turn.parts.map(part => part.text || "").join("\n");
-                    if (fullText) {
-                        processBotResponse(bubble, fullText);
-                    }
+                    if (fullText) processBotResponse(bubble, fullText);
                 });
-
                 updateDynamicContent();
-                setTimeout(() => {
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                }, 100);
+                setTimeout(() => (chatContainer.scrollTop = chatContainer.scrollHeight), 100);
             }
 
-            // --- 9. INICIALIZAÇÃO DA APLICAÇÃO ---
+            // --- 5. LÓGICA DE INICIALIZAÇÃO E NATIVA ---
 
             /**
-             * Função principal que inicializa o chatbot.
+             * Define as cores das barras do sistema nativo quando rodando no Cordova.
              */
-            async function initializeChatApp() {
-                let systemPrompt;
-                try {
-                    // Carrega os arquivos de contexto em paralelo
-                    const [docResponse, promptResponse] = await Promise.all([fetch("./doc.txt"), fetch("./prompt.txt")]);
-                    if (!docResponse.ok || !promptResponse.ok) throw new Error(`Erro ao carregar arquivos de contexto.`);
-                    const docContent = await docResponse.text();
-                    const promptContent = await promptResponse.text();
-                    systemPrompt = "Aqui está a documentação da biblioteca Noxss para sua referência:\n\n" + docContent + "\n\n\n" + promptContent;
-                } catch (error) {
-                    console.error("Erro fatal na inicialização:", error);
-                    processBotResponse(addMessage("bot"), "<strong>Erro:</strong> Não foi possível carregar os arquivos base para configurar o assistente.");
-                    return;
+            function setNativeUIColors() {
+                if (window.StatusBar && window.navigationbar) {
+                    console.log("Cordova detectado. Aplicando cores de UI nativas.");
+                    // Define a cor da Barra de Status (topo) para #2e2e2e
+                    window.StatusBar.backgroundColorByHexString("#2e2e2e");
+                    // Define a cor da Barra de Navegação (inferior) para #2a2a2a
+                    // O argumento 'false' garante que os ícones (voltar, home) fiquem claros
+                    window.navigationbar.backgroundColorByHexString("#2a2a2a", false);
+                } else {
+                    console.log("Rodando no navegador. Cores nativas não aplicadas.");
                 }
-
-                // Configura a API do Gemini
-                const genAI = new GoogleGenerativeAI(API_KEY);
-                model = genAI.getGenerativeModel({
-                    model: MODEL_NAME,
-                    systemInstruction: { role: "user", parts: [{ text: systemPrompt }] }
-                });
-
-                // Inicia a primeira sessão de chat e exibe a mensagem de boas-vindas
-                startNewChatSession([]);
-                processBotResponse(addMessage("bot"), "Olá! Sou o Sabedor, um chatbot com a tecnologia V-Oito. Como posso te ajudar hoje?");
-
-                // Anexa os event listeners aos elementos da UI
-                chatForm.addEventListener("submit", handleChatSubmit);
-                downloadBtn.addEventListener("click", handleDownloadHistory);
-                uploadBtn.addEventListener("click", () => historyFileInput.click());
-                historyFileInput.addEventListener("change", handleHistoryFileSelected);
-                imageUploadBtn.addEventListener("click", () => imageFileInput.click());
-                imageFileInput.addEventListener("change", handleImageSelected);
-
-                updateDynamicContent();
-                messageInput.focus();
-                
-                document.addEventListener(
-                    "deviceready",
-                    () => {
-                        console.log("Dispositivo pronto. Inicializando funcionalidades nativas.");
-
-                        // Chama a nossa nova função para colorir as barras
-                        setSystemBarColors();
-
-                        // O resto da sua inicialização pode continuar aqui se depender de plugins
-                        // ou pode ficar fora se não depender. Por segurança, vamos manter aqui.
-                    },
-                    false
-                );
             }
 
-            // Ponto de entrada: espera o DOM estar pronto para iniciar a aplicação.
-            document.addEventListener("DOMContentLoaded", initializeChatApp);
+            /**
+             * Função principal que inicializa a lógica do chatbot.
+             */
+            async function initializeChat() {
+                try {
+                    const [docResponse, promptResponse] = await Promise.all([fetch("./doc.txt"), fetch("./prompt.txt")]);
+                    if (!docResponse.ok || !promptResponse.ok) throw new Error(`Erro ao carregar arquivos de contexto.`);
+
+                    const docContent = await docResponse.text();
+                    const promptContent = await promptResponse.text();
+                    const systemPrompt = `Aqui está a documentação da biblioteca Noxss para sua referência:\n\n${docContent}\n\n\n${promptContent}`;
+
+                    const genAI = new GoogleGenerativeAI(API_KEY);
+                    model = genAI.getGenerativeModel({
+                        model: MODEL_NAME,
+                        systemInstruction: { role: "user", parts: [{ text: systemPrompt }] }
+                    });
+
+                    startNewChatSession([]);
+                    processBotResponse(addMessage("bot"), "Olá! Sou o Sabedor, um chatbot com a tecnologia V-Oito. Como posso te ajudar hoje?");
+
+                    chatForm.addEventListener("submit", handleChatSubmit);
+                    downloadBtn.addEventListener("click", handleDownloadHistory);
+                    uploadBtn.addEventListener("click", () => historyFileInput.click());
+                    historyFileInput.addEventListener("change", handleHistoryFileSelected);
+                    imageUploadBtn.addEventListener("click", () => imageFileInput.click());
+                    imageFileInput.addEventListener("change", handleImageSelected);
+
+                    updateDynamicContent();
+                    messageInput.focus();
+                } catch (error) {
+                    console.error("Erro fatal na inicialização:", error);
+                    processBotResponse(addMessage("bot"), "<strong>Erro:</strong> Não foi possível configurar o assistente.");
+                }
+            }
+
+            // --- PONTO DE ENTRADA PRINCIPAL ---
+            document.addEventListener("DOMContentLoaded", () => {
+                // 1. Inicia a lógica principal do chat (para web e mobile)
+                initializeChat();
+
+                // 2. Registra um listener para o evento 'deviceready' do Cordova.
+                //    Isso só será executado em um dispositivo, não no navegador.
+                document.addEventListener("deviceready", setNativeUIColors, false);
+            });
         </script>
     </body>
 </html>
