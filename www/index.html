@@ -4,7 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Chat com V-Oito & Noxss</title>
-        
+
         <script src="cordova.js"></script>
 
         <!-- ========================================================================= -->
@@ -197,7 +197,7 @@
                 <a class="noxss-navbar__brand" href="#"><i data-feather="message-square" class="noxss-icon"></i> <span>V-Oito</span></a>
                 <p class="noxss-text-secondary" style="font-size: 0.8rem; margin-left: 5px; opacity: 0.7">Powered by Noxss</p>
                 <div class="navbar-actions">
-                    <button id="apply-colors-btn" class="noxss-btn noxss-btn--secondary" title="Aplicar Cores Manualmente"><i data-feather="droplet" class="noxss-icon"></i></button> <button id="download-history-btn" class="noxss-btn noxss-btn--secondary" title="Baixar Histórico do Chat"><i data-feather="download" class="noxss-icon"></i></button>
+                    <button id="download-history-btn" class="noxss-btn noxss-btn--secondary" title="Baixar Histórico do Chat"><i data-feather="download" class="noxss-icon"></i></button>
                     <button id="upload-history-btn" class="noxss-btn noxss-btn--secondary" title="Carregar Histórico do Chat"><i data-feather="upload" class="noxss-icon"></i></button>
                     <input type="file" id="history-file-input" accept=".json" style="display: none" />
                 </div>
@@ -232,281 +232,337 @@
         <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
 
         <!-- Módulo principal do Chatbot -->
-<script type="module">
-    import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "https://esm.run/@google/generative-ai";
+        <script type="module">
+            import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "https://esm.run/@google/generative-ai";
 
-    // --- 1. CONFIGURAÇÃO E CONSTANTES ---
-    const API_KEY = "AIzaSyCxSyn1mq_zKZ5k7wLjBXfK_Gx361kZX1s";
-    const MODEL_NAME = "gemini-2.5-flash";
+            // --- 1. CONFIGURAÇÃO E CONSTANTES ---
+            const API_KEY = "AIzaSyCxSyn1mq_zKZ5k7wLjBXfK_Gx361kZX1s";
+            const MODEL_NAME = "gemini-2.5-flash";
 
-    // --- 2. SELETORES DE ELEMENTOS DO DOM ---
-    const chatContainer = document.getElementById("chat-container");
-    const chatForm = document.getElementById("chat-form");
-    const messageInput = document.getElementById("message-input");
-    const sendButton = document.getElementById("sendButton");
-    const downloadBtn = document.getElementById("download-history-btn");
-    const uploadBtn = document.getElementById("upload-history-btn");
-    const historyFileInput = document.getElementById("history-file-input");
-    const imageUploadBtn = document.getElementById("image-upload-btn");
-    const imageFileInput = document.getElementById("image-file-input");
-    const imagePreviewContainer = document.getElementById("image-preview-container");
+            // --- 2. SELETORES DE ELEMENTOS DO DOM ---
+            const chatContainer = document.getElementById("chat-container");
+            const chatForm = document.getElementById("chat-form");
+            const messageInput = document.getElementById("message-input");
+            const sendButton = document.getElementById("sendButton");
+            const downloadBtn = document.getElementById("download-history-btn");
+            const uploadBtn = document.getElementById("upload-history-btn");
+            const historyFileInput = document.getElementById("history-file-input");
+            const imageUploadBtn = document.getElementById("image-upload-btn");
+            const imageFileInput = document.getElementById("image-file-input");
+            const imagePreviewContainer = document.getElementById("image-preview-container");
 
-    // --- 3. VARIÁVEIS DE ESTADO GLOBAL ---
-    let chat;
-    let model;
-    let selectedImageFiles = [];
+            // --- 3. VARIÁVEIS DE ESTADO GLOBAL ---
+            let chat;
+            let model;
+            let selectedImageFiles = [];
 
-    // --- 4. FUNÇÕES DE UI E LÓGICA DO CHAT ---
+            // --- 4. FUNÇÕES DE UI E LÓGICA DO CHAT ---
 
-    /**
-     * Atualiza bibliotecas que manipulam o DOM dinamicamente (Feather, KaTeX).
-     */
-    function updateDynamicContent() {
-        if (window.feather) {
-            feather.replace({ class: "noxss-icon" });
-        }
-        if (window.renderMathInElement) {
-            renderMathInElement(document.body, {
-                delimiters: [
-                    { left: "$$", right: "$$", display: true },
-                    { left: "$", right: "$", display: false },
-                ],
-                throwOnError: false,
+            /**
+             * Atualiza bibliotecas que manipulam o DOM dinamicamente (Feather, KaTeX).
+             */
+            function updateDynamicContent() {
+                if (window.feather) {
+                    feather.replace({ class: "noxss-icon" });
+                }
+                if (window.renderMathInElement) {
+                    renderMathInElement(document.body, {
+                        delimiters: [
+                            { left: "$$", right: "$$", display: true },
+                            { left: "$", right: "$", display: false }
+                        ],
+                        throwOnError: false
+                    });
+                }
+            }
+
+            /**
+             * Cria e adiciona um novo balão de mensagem ao chat.
+             * @param {'user'|'bot'} sender - Quem está enviando a mensagem.
+             * @returns {HTMLElement} O elemento do balão de mensagem para inserção de conteúdo.
+             */
+            function addMessage(sender) {
+                const messageWrapper = document.createElement("div");
+                messageWrapper.className = `chat-message chat-message--${sender}`;
+                const messageBubble = document.createElement("div");
+                messageBubble.className = "message-bubble";
+                messageWrapper.appendChild(messageBubble);
+                chatContainer.appendChild(messageWrapper);
+                messageWrapper.scrollIntoView({ behavior: "smooth", block: "end" });
+                return messageBubble;
+            }
+
+            /**
+             * Processa uma string em Markdown, a converte para HTML e a injeta em um balão de mensagem.
+             * Também encontra e estiliza os blocos de código.
+             * @param {HTMLElement} bubbleElement - O balão de mensagem onde o conteúdo será renderizado.
+             * @param {string} markdownText - O texto em Markdown a ser processado.
+             */
+            function processBotResponse(bubbleElement, markdownText) {
+                bubbleElement.innerHTML = marked.parse(markdownText);
+                bubbleElement.querySelectorAll("pre code").forEach(block => {
+                    const pre = block.parentElement;
+                    if (!pre.parentElement.classList.contains("noxss-code-block")) {
+                        const wrapper = document.createElement("div");
+                        wrapper.className = "noxss-code-block";
+                        pre.parentNode.insertBefore(wrapper, pre);
+                        wrapper.appendChild(pre);
+                    }
+                    hljs.highlightElement(block);
+                });
+                if (window.Noxss && Noxss.Typography) Noxss.Typography.initCodeBlocks();
+            }
+
+            /**
+             * Converte um objeto File para o formato GenerativePart da API do Gemini.
+             * @param {File} file - O arquivo de imagem.
+             * @returns {Promise<object>} Uma promessa que resolve para o objeto no formato da API.
+             */
+            async function fileToGenerativePart(file) {
+                const base64EncodedDataPromise = new Promise(resolve => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result.split(",")[1]);
+                    reader.readAsDataURL(file);
+                });
+                return { inlineData: { data: await base64EncodedDataPromise, mimeType: file.type } };
+            }
+
+            /**
+             * Inicia uma nova sessão de chat com o Gemini.
+             * @param {Array} [history=[]] - O histórico de conversas para iniciar a sessão.
+             */
+            function startNewChatSession(history = []) {
+                chat = model.startChat({
+                    history,
+                    generationConfig: { maxOutputTokens: 8192 },
+                    safetySettings: [
+                        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+                        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
+                    ]
+                });
+            }
+
+            /**
+             * Manipula o envio do formulário de chat.
+             */
+            async function handleChatSubmit(e) {
+                e.preventDefault();
+                const userMessageText = messageInput.value.trim();
+                if (!userMessageText && selectedImageFiles.length === 0) return;
+
+                const userBubble = addMessage("user");
+                const currentImages = [...selectedImageFiles];
+
+                if (currentImages.length > 0) {
+                    const gallery = document.createElement("div");
+                    gallery.className = "chat-image-gallery";
+                    currentImages.forEach(file => {
+                        const img = document.createElement("img");
+                        img.src = URL.createObjectURL(file);
+                        img.className = "chat-image-attachment";
+                        img.onclick = () => window.open(img.src, "_blank");
+                        gallery.appendChild(img);
+                    });
+                    userBubble.appendChild(gallery);
+                }
+                if (userMessageText) {
+                    const textP = document.createElement("p");
+                    textP.innerText = userMessageText;
+                    userBubble.appendChild(textP);
+                }
+
+                messageInput.value = "";
+                clearImageSelection();
+                messageInput.disabled = true;
+                sendButton.disabled = true;
+                imageUploadBtn.disabled = true;
+
+                const loadingBubble = addMessage("bot");
+                loadingBubble.innerHTML = `<div class="typing-indicator"><div class="noxss-spinner"><div class="noxss-spinner-point-1"></div><div class="noxss-spinner-point-2"></div><div class="noxss-spinner-point-3"></div></div><span>V-Oito está pensando...</span></div>`;
+
+                try {
+                    const imageParts = await Promise.all(currentImages.map(fileToGenerativePart));
+                    const promptParts = [...imageParts, { text: userMessageText }];
+
+                    const result = await chat.sendMessageStream(promptParts);
+                    let fullResponseText = "";
+                    loadingBubble.innerHTML = "";
+
+                    for await (const chunk of result.stream) {
+                        fullResponseText += chunk.text();
+                        processBotResponse(loadingBubble, fullResponseText + " ▋");
+                    }
+                    processBotResponse(loadingBubble, fullResponseText);
+                } catch (error) {
+                    console.error("Erro ao contatar a API do Gemini:", error);
+                    processBotResponse(loadingBubble, `> **Erro:** Desculpe, ocorreu um erro ao processar sua solicitação.`);
+                    if (window.Noxss && Noxss.Toasts) Noxss.Toasts.show({ message: "Ocorreu um erro na API.", status: "danger" });
+                } finally {
+                    messageInput.disabled = false;
+                    sendButton.disabled = false;
+                    imageUploadBtn.disabled = false;
+                    messageInput.focus();
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                    updateDynamicContent();
+                }
+            }
+
+            function renderImagePreviews() {
+                imagePreviewContainer.innerHTML = "";
+                if (selectedImageFiles.length === 0) {
+                    imagePreviewContainer.style.display = "none";
+                    return;
+                }
+                selectedImageFiles.forEach((file, index) => {
+                    const previewItem = document.createElement("div");
+                    previewItem.className = "preview-item";
+                    const img = document.createElement("img");
+                    img.src = URL.createObjectURL(file);
+                    img.className = "preview-image";
+                    const removeBtn = document.createElement("button");
+                    removeBtn.className = "remove-image-btn noxss-btn noxss-btn--icon";
+                    removeBtn.innerHTML = `<i data-feather="x" class="noxss-icon"></i>`;
+                    removeBtn.onclick = e => {
+                        e.stopPropagation();
+                        removeImageFromSelection(index);
+                    };
+                    previewItem.append(img, removeBtn);
+                    imagePreviewContainer.appendChild(previewItem);
+                });
+                imagePreviewContainer.style.display = "flex";
+                updateDynamicContent();
+            }
+
+            function handleImageSelected(event) {
+                Array.from(event.target.files).forEach(file => {
+                    if (file.type.startsWith("image/")) selectedImageFiles.push(file);
+                });
+                renderImagePreviews();
+                event.target.value = null;
+            }
+            function removeImageFromSelection(index) {
+                selectedImageFiles.splice(index, 1);
+                renderImagePreviews();
+            }
+            function clearImageSelection() {
+                selectedImageFiles = [];
+                renderImagePreviews();
+            }
+            async function handleDownloadHistory() {
+                if (!chat) return;
+                const historyToSave = await chat.getHistory();
+                const historyJson = JSON.stringify(
+                    historyToSave.filter(h => h.role !== "model" || !h.parts[0].text.startsWith("Olá! Um histórico")),
+                    null,
+                    2
+                );
+                const blob = new Blob([historyJson], { type: "application/json" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `chat-history-sabedor-${new Date().toISOString().split("T")[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            }
+            function handleHistoryFileSelected(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = e => {
+                    try {
+                        const loadedHistory = JSON.parse(e.target.result);
+                        rebuildChatUIFromHistory(loadedHistory);
+                        startNewChatSession(loadedHistory);
+                        if (window.Noxss && Noxss.Toasts) Noxss.Toasts.show({ message: "Histórico carregado!", status: "success" });
+                    } catch (error) {
+                        console.error("Erro ao carregar histórico:", error);
+                        if (window.Noxss && Noxss.Toasts) Noxss.Toasts.show({ message: "Falha ao carregar o arquivo.", status: "danger" });
+                    }
+                };
+                reader.readAsText(file);
+                event.target.value = null;
+            }
+            function rebuildChatUIFromHistory(history) {
+                chatContainer.innerHTML = "";
+                processBotResponse(addMessage("bot"), "Olá! Um histórico de chat anterior foi carregado.");
+                history.forEach(turn => {
+                    const bubble = addMessage(turn.role === "user" ? "user" : "bot");
+                    const fullText = turn.parts.map(part => part.text || "").join("\n");
+                    if (fullText) processBotResponse(bubble, fullText);
+                });
+                updateDynamicContent();
+                setTimeout(() => (chatContainer.scrollTop = chatContainer.scrollHeight), 100);
+            }
+
+            // --- 5. LÓGICA DE INICIALIZAÇÃO E NATIVA ---
+
+            /**
+             * Define as cores das barras do sistema nativo quando rodando no Cordova.
+             * Esta função é chamada automaticamente pelo evento 'deviceready'.
+             */
+            function setNativeUIColors() {
+                // Atraso para garantir que a UI nativa esteja 100% pronta para receber comandos.
+                setTimeout(() => {
+                    // Verifica se o plugin da StatusBar está disponível
+                    if (window.StatusBar && typeof window.StatusBar.backgroundColorByHexString === "function") {
+                        window.StatusBar.backgroundColorByHexString("#2e2e2e");
+                    }
+
+                    // Verifica se o plugin da NavigationBar (versão -color) está disponível
+                    if (window.NavigationBar && typeof window.NavigationBar.backgroundColorByHexString === "function") {
+                        // O segundo argumento 'false' garante que os ícones (voltar, home) fiquem claros
+                        window.NavigationBar.backgroundColorByHexString("#2a2a2a", false);
+                    }
+                }, 300);
+            }
+
+            /**
+             * Função principal que inicializa a lógica do chatbot.
+             */
+            async function initializeChat() {
+                try {
+                    const [docResponse, promptResponse] = await Promise.all([fetch("./doc.txt"), fetch("./prompt.txt")]);
+                    if (!docResponse.ok || !promptResponse.ok) throw new Error("Erro ao carregar arquivos de contexto.");
+
+                    const docContent = await docResponse.text();
+                    const promptContent = await promptResponse.text();
+                    const systemPrompt = `Aqui está a documentação da biblioteca Noxss para sua referência:\n\n${docContent}\n\n\n${promptContent}`;
+
+                    const genAI = new GoogleGenerativeAI(API_KEY);
+                    model = genAI.getGenerativeModel({
+                        model: MODEL_NAME,
+                        systemInstruction: { role: "user", parts: [{ text: systemPrompt }] }
+                    });
+
+                    startNewChatSession([]);
+                    processBotResponse(addMessage("bot"), "Olá! Sou o Sabedor, um chatbot com a tecnologia V-Oito. Como posso te ajudar hoje?");
+
+                    // Event Listeners
+                    chatForm.addEventListener("submit", handleChatSubmit);
+                    downloadBtn.addEventListener("click", handleDownloadHistory);
+                    uploadBtn.addEventListener("click", () => historyFileInput.click());
+                    historyFileInput.addEventListener("change", handleHistoryFileSelected);
+                    imageUploadBtn.addEventListener("click", () => imageFileInput.click());
+                    imageFileInput.addEventListener("change", handleImageSelected);
+
+                    updateDynamicContent();
+                    messageInput.focus();
+                } catch (error) {
+                    console.error("Erro fatal na inicialização:", error);
+                    processBotResponse(addMessage("bot"), "<strong>Erro:</strong> Não foi possível configurar o assistente.");
+                }
+            }
+
+            // --- PONTO DE ENTRADA PRINCIPAL ---
+            document.addEventListener("DOMContentLoaded", () => {
+                // Inicia a lógica principal do chat (funciona para web e mobile)
+                initializeChat();
+
+                // Registra um listener para o evento 'deviceready' do Cordova.
+                // Isso só será executado em um dispositivo, não no navegador.
+                document.addEventListener("deviceready", setNativeUIColors, false);
             });
-        }
-    }
-
-    /**
-     * Cria e adiciona um novo balão de mensagem ao chat.
-     * @param {'user'|'bot'} sender - Quem está enviando a mensagem.
-     * @returns {HTMLElement} O elemento do balão de mensagem para inserção de conteúdo.
-     */
-    function addMessage(sender) {
-        const messageWrapper = document.createElement("div");
-        messageWrapper.className = `chat-message chat-message--${sender}`;
-        const messageBubble = document.createElement("div");
-        messageBubble.className = "message-bubble";
-        messageWrapper.appendChild(messageBubble);
-        chatContainer.appendChild(messageWrapper);
-        messageWrapper.scrollIntoView({ behavior: "smooth", block: "end" });
-        return messageBubble;
-    }
-
-    /**
-     * Processa uma string em Markdown, a converte para HTML e a injeta em um balão de mensagem.
-     * Também encontra e estiliza os blocos de código.
-     * @param {HTMLElement} bubbleElement - O balão de mensagem onde o conteúdo será renderizado.
-     * @param {string} markdownText - O texto em Markdown a ser processado.
-     */
-    function processBotResponse(bubbleElement, markdownText) {
-        bubbleElement.innerHTML = marked.parse(markdownText);
-        bubbleElement.querySelectorAll("pre code").forEach(block => {
-            const pre = block.parentElement;
-            if (!pre.parentElement.classList.contains("noxss-code-block")) {
-                const wrapper = document.createElement("div");
-                wrapper.className = "noxss-code-block";
-                pre.parentNode.insertBefore(wrapper, pre);
-                wrapper.appendChild(pre);
-            }
-            hljs.highlightElement(block);
-        });
-        if (window.Noxss && Noxss.Typography) Noxss.Typography.initCodeBlocks();
-    }
-
-    /**
-     * Converte um objeto File para o formato GenerativePart da API do Gemini.
-     * @param {File} file - O arquivo de imagem.
-     * @returns {Promise<object>} Uma promessa que resolve para o objeto no formato da API.
-     */
-    async function fileToGenerativePart(file) {
-        const base64EncodedDataPromise = new Promise(resolve => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result.split(",")[1]);
-            reader.readAsDataURL(file);
-        });
-        return { inlineData: { data: await base64EncodedDataPromise, mimeType: file.type } };
-    }
-
-    /**
-     * Inicia uma nova sessão de chat com o Gemini.
-     * @param {Array} [history=[]] - O histórico de conversas para iniciar a sessão.
-     */
-    function startNewChatSession(history = []) {
-        chat = model.startChat({
-            history,
-            generationConfig: { maxOutputTokens: 8192 },
-            safetySettings: [
-                { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-                { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-                { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-                { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            ],
-        });
-    }
-
-    /**
-     * Manipula o envio do formulário de chat.
-     */
-    async function handleChatSubmit(e) {
-        e.preventDefault();
-        const userMessageText = messageInput.value.trim();
-        if (!userMessageText && selectedImageFiles.length === 0) return;
-
-        const userBubble = addMessage("user");
-        const currentImages = [...selectedImageFiles];
-
-        if (currentImages.length > 0) {
-            const gallery = document.createElement("div");
-            gallery.className = "chat-image-gallery";
-            currentImages.forEach(file => {
-                const img = document.createElement("img");
-                img.src = URL.createObjectURL(file);
-                img.className = "chat-image-attachment";
-                img.onclick = () => window.open(img.src, "_blank");
-                gallery.appendChild(img);
-            });
-            userBubble.appendChild(gallery);
-        }
-        if (userMessageText) {
-            const textP = document.createElement("p");
-            textP.innerText = userMessageText;
-            userBubble.appendChild(textP);
-        }
-
-        messageInput.value = "";
-        clearImageSelection();
-        messageInput.disabled = true;
-        sendButton.disabled = true;
-        imageUploadBtn.disabled = true;
-
-        const loadingBubble = addMessage("bot");
-        loadingBubble.innerHTML = `<div class="typing-indicator"><div class="noxss-spinner"><div class="noxss-spinner-point-1"></div><div class="noxss-spinner-point-2"></div><div class="noxss-spinner-point-3"></div></div><span>V-Oito está pensando...</span></div>`;
-
-        try {
-            const imageParts = await Promise.all(currentImages.map(fileToGenerativePart));
-            const promptParts = [...imageParts, { text: userMessageText }];
-
-            const result = await chat.sendMessageStream(promptParts);
-            let fullResponseText = "";
-            loadingBubble.innerHTML = "";
-
-            for await (const chunk of result.stream) {
-                fullResponseText += chunk.text();
-                processBotResponse(loadingBubble, fullResponseText + " ▋");
-            }
-            processBotResponse(loadingBubble, fullResponseText);
-        } catch (error) {
-            console.error("Erro ao contatar a API do Gemini:", error);
-            processBotResponse(loadingBubble, `> **Erro:** Desculpe, ocorreu um erro ao processar sua solicitação.`);
-            if (window.Noxss && Noxss.Toasts) Noxss.Toasts.show({ message: "Ocorreu um erro na API.", status: "danger" });
-        } finally {
-            messageInput.disabled = false;
-            sendButton.disabled = false;
-            imageUploadBtn.disabled = false;
-            messageInput.focus();
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-            updateDynamicContent();
-        }
-    }
-
-    function renderImagePreviews() {
-        imagePreviewContainer.innerHTML = "";
-        if (selectedImageFiles.length === 0) {
-            imagePreviewContainer.style.display = "none";
-            return;
-        }
-        selectedImageFiles.forEach((file, index) => {
-            const previewItem = document.createElement("div");
-            previewItem.className = "preview-item";
-            const img = document.createElement("img");
-            img.src = URL.createObjectURL(file);
-            img.className = "preview-image";
-            const removeBtn = document.createElement("button");
-            removeBtn.className = "remove-image-btn noxss-btn noxss-btn--icon";
-            removeBtn.innerHTML = `<i data-feather="x" class="noxss-icon"></i>`;
-            removeBtn.onclick = (e) => { e.stopPropagation(); removeImageFromSelection(index); };
-            previewItem.append(img, removeBtn);
-            imagePreviewContainer.appendChild(previewItem);
-        });
-        imagePreviewContainer.style.display = "flex";
-        updateDynamicContent();
-    }
-
-    function handleImageSelected(event) { Array.from(event.target.files).forEach(file => { if (file.type.startsWith("image/")) selectedImageFiles.push(file); }); renderImagePreviews(); event.target.value = null; }
-    function removeImageFromSelection(index) { selectedImageFiles.splice(index, 1); renderImagePreviews(); }
-    function clearImageSelection() { selectedImageFiles = []; renderImagePreviews(); }
-    async function handleDownloadHistory() { if (!chat) return; const historyToSave = await chat.getHistory(); const historyJson = JSON.stringify(historyToSave.filter(h => h.role !== 'model' || !h.parts[0].text.startsWith("Olá! Um histórico")), null, 2); const blob = new Blob([historyJson], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `chat-history-sabedor-${new Date().toISOString().split('T')[0]}.json`; a.click(); URL.revokeObjectURL(a.href); }
-    function handleHistoryFileSelected(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { try { const loadedHistory = JSON.parse(e.target.result); rebuildChatUIFromHistory(loadedHistory); startNewChatSession(loadedHistory); if (window.Noxss && Noxss.Toasts) Noxss.Toasts.show({ message: "Histórico carregado!", status: "success" }); } catch (error) { console.error("Erro ao carregar histórico:", error); if (window.Noxss && Noxss.Toasts) Noxss.Toasts.show({ message: "Falha ao carregar o arquivo.", status: "danger" }); } }; reader.readAsText(file); event.target.value = null; }
-    function rebuildChatUIFromHistory(history) { chatContainer.innerHTML = ""; processBotResponse(addMessage("bot"), "Olá! Um histórico de chat anterior foi carregado."); history.forEach(turn => { const bubble = addMessage(turn.role === "user" ? "user" : "bot"); const fullText = turn.parts.map(part => part.text || "").join("\n"); if (fullText) processBotResponse(bubble, fullText); }); updateDynamicContent(); setTimeout(() => (chatContainer.scrollTop = chatContainer.scrollHeight), 100); }
-
-
-    // --- 5. LÓGICA DE INICIALIZAÇÃO E NATIVA ---
-
-    /**
-     * Define as cores das barras do sistema nativo quando rodando no Cordova.
-     * Esta função é chamada automaticamente pelo evento 'deviceready'.
-     */
-    function setNativeUIColors() {
-        // Atraso para garantir que a UI nativa esteja 100% pronta para receber comandos.
-        setTimeout(() => {
-            // Verifica se o plugin da StatusBar está disponível
-            if (window.StatusBar && typeof window.StatusBar.backgroundColorByHexString === 'function') {
-                window.StatusBar.backgroundColorByHexString("#2e2e2e");
-            }
-
-            // Verifica se o plugin da NavigationBar (versão -color) está disponível
-            if (window.navigationbar && typeof window.navigationbar.backgroundColorByHexString === 'function') {
-                // O segundo argumento 'false' garante que os ícones (voltar, home) fiquem claros
-                window.navigationbar.backgroundColorByHexString("#2a2a2a", false);
-            }
-        }, 300);
-    }
-
-    /**
-     * Função principal que inicializa a lógica do chatbot.
-     */
-    async function initializeChat() {
-        try {
-            const [docResponse, promptResponse] = await Promise.all([fetch("./doc.txt"), fetch("./prompt.txt")]);
-            if (!docResponse.ok || !promptResponse.ok) throw new Error("Erro ao carregar arquivos de contexto.");
-
-            const docContent = await docResponse.text();
-            const promptContent = await promptResponse.text();
-            const systemPrompt = `Aqui está a documentação da biblioteca Noxss para sua referência:\n\n${docContent}\n\n\n${promptContent}`;
-
-            const genAI = new GoogleGenerativeAI(API_KEY);
-            model = genAI.getGenerativeModel({
-                model: MODEL_NAME,
-                systemInstruction: { role: "user", parts: [{ text: systemPrompt }] },
-            });
-
-            startNewChatSession([]);
-            processBotResponse(addMessage("bot"), "Olá! Sou o Sabedor, um chatbot com a tecnologia V-Oito. Como posso te ajudar hoje?");
-
-            // Event Listeners
-            chatForm.addEventListener("submit", handleChatSubmit);
-            downloadBtn.addEventListener("click", handleDownloadHistory);
-            uploadBtn.addEventListener("click", () => historyFileInput.click());
-            historyFileInput.addEventListener("change", handleHistoryFileSelected);
-            imageUploadBtn.addEventListener("click", () => imageFileInput.click());
-            imageFileInput.addEventListener("change", handleImageSelected);
-
-            updateDynamicContent();
-            messageInput.focus();
-        } catch (error) {
-            console.error("Erro fatal na inicialização:", error);
-            processBotResponse(addMessage("bot"), "<strong>Erro:</strong> Não foi possível configurar o assistente.");
-        }
-    }
-
-    // --- PONTO DE ENTRADA PRINCIPAL ---
-    document.addEventListener("DOMContentLoaded", () => {
-        // Inicia a lógica principal do chat (funciona para web e mobile)
-        initializeChat();
-        
-        // Registra um listener para o evento 'deviceready' do Cordova.
-        // Isso só será executado em um dispositivo, não no navegador.
-        document.addEventListener('deviceready', setNativeUIColors, false);
-    });
-</script>    </body>
+        </script>
+    </body>
 </html>
