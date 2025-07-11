@@ -235,8 +235,8 @@
             import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "https://esm.run/@google/generative-ai";
 
             // --- 1. CONFIGURAÇÃO E CONSTANTES ---
-            const API_KEY = "AIzaSyCxSyn1mq_zKZ5k7wLjBXfK_Gx361kZX1s"; // Chave de API
-            const MODEL_NAME = "gemini-2.5-flash"; // Modelo atualizado
+            const API_KEY = "AIzaSyCxSyn1mq_zKZ5k7wLjBXfK_Gx361kZX1s";
+            const MODEL_NAME = "gemini-2.5-flash";
 
             // --- 2. SELETORES DE ELEMENTOS DO DOM ---
             const chatContainer = document.getElementById("chat-container");
@@ -255,7 +255,7 @@
             let model;
             let selectedImageFiles = [];
 
-            // --- 4. FUNÇÕES DE UI E LÓGICA DO CHAT (Sem alterações, apenas organizadas) ---
+            // --- 4. FUNÇÕES DE UI E LÓGICA DO CHAT ---
 
             function updateDynamicContent() {
                 if (window.feather) feather.replace({ class: "noxss-icon" });
@@ -479,16 +479,28 @@
              * Define as cores das barras do sistema nativo quando rodando no Cordova.
              */
             function setNativeUIColors() {
-                if (window.StatusBar && window.navigationbar) {
-                    console.log("Cordova detectado. Aplicando cores de UI nativas.");
-                    // Define a cor da Barra de Status (topo) para #2e2e2e
-                    window.StatusBar.backgroundColorByHexString("#2e2e2e");
-                    // Define a cor da Barra de Navegação (inferior) para #2a2a2a
-                    // O argumento 'false' garante que os ícones (voltar, home) fiquem claros
-                    window.navigationbar.backgroundColorByHexString("#2a2a2a", false);
-                } else {
-                    console.log("Rodando no navegador. Cores nativas não aplicadas.");
-                }
+                console.log("Função setNativeUIColors foi chamada, aguardando 300ms...");
+
+                setTimeout(() => {
+                    console.log("Timeout de 300ms concluído. Verificando plugins...");
+
+                    if (window.StatusBar && typeof window.StatusBar.backgroundColorByHexString === "function") {
+                        console.log("Plugin StatusBar encontrado. Aplicando cor...");
+                        window.StatusBar.backgroundColorByHexString("#2e2e2e");
+                    } else {
+                        console.error("ERRO: Plugin StatusBar não encontrado ou função indisponível.");
+                    }
+
+                    if (window.navigationbar && typeof window.navigationbar.backgroundColorByHexString === "function") {
+                        console.log("Plugin navigationbar encontrado. Aplicando cor...");
+                        // O segundo argumento 'false' garante que os ícones (voltar, home) fiquem claros
+                        window.navigationbar.backgroundColorByHexString("#2a2a2a", false);
+                    } else {
+                        console.error("ERRO: Plugin navigationbar não encontrado ou função indisponível.");
+                    }
+
+                    console.log("Tentativa de aplicar cores da UI nativa concluída.");
+                }, 300); // Atraso para garantir que a UI nativa esteja 100% pronta.
             }
 
             window.setNativeUIColors = setNativeUIColors;
@@ -499,7 +511,7 @@
             async function initializeChat() {
                 try {
                     const [docResponse, promptResponse] = await Promise.all([fetch("./doc.txt"), fetch("./prompt.txt")]);
-                    if (!docResponse.ok || !promptResponse.ok) throw new Error(`Erro ao carregar arquivos de contexto.`);
+                    if (!docResponse.ok || !promptResponse.ok) throw new Error("Erro ao carregar arquivos de contexto.");
 
                     const docContent = await docResponse.text();
                     const promptContent = await promptResponse.text();
