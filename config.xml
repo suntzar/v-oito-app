@@ -65,4 +65,7 @@
         <splash density="port-xhdpi" src="res/screen/android/drawable-port-xhdpi/screen.png" />
         -->
     </platform>
+    <plugin name="cordova-plugin-statusbar" spec="^3.0.0" />
+    <plugin name="cordova-plugin-keyboard" spec="^1.2.0" />
+    <plugin name="cordova-plugin-navigationbar-color" spec="^0.0.9" /> 
 </widget>
