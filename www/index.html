@@ -195,8 +195,7 @@
                 <a class="noxss-navbar__brand" href="#"><i data-feather="message-square" class="noxss-icon"></i> <span>V-Oito</span></a>
                 <p class="noxss-text-secondary" style="font-size: 0.8rem; margin-left: 5px; opacity: 0.7">Powered by Noxss</p>
                 <div class="navbar-actions">
-                    <button class="noxss-btn noxss-btn--secondary" title="colorir barras" onclick="setNativeUIColors()"><i data-feather="droplet" class="noxss-icon"></i></button>
-                    <button id="download-history-btn" class="noxss-btn noxss-btn--secondary" title="Baixar Histórico do Chat"><i data-feather="download" class="noxss-icon"></i></button>
+<button id="apply-colors-btn" class="noxss-btn noxss-btn--secondary" title="Aplicar Cores Manualmente"><i data-feather="droplet" class="noxss-icon"></i></button>                    <button id="download-history-btn" class="noxss-btn noxss-btn--secondary" title="Baixar Histórico do Chat"><i data-feather="download" class="noxss-icon"></i></button>
                     <button id="upload-history-btn" class="noxss-btn noxss-btn--secondary" title="Carregar Histórico do Chat"><i data-feather="upload" class="noxss-icon"></i></button>
                     <input type="file" id="history-file-input" accept=".json" style="display: none" />
                 </div>
@@ -249,6 +248,7 @@
             const imageUploadBtn = document.getElementById("image-upload-btn");
             const imageFileInput = document.getElementById("image-file-input");
             const imagePreviewContainer = document.getElementById("image-preview-container");
+            const applyColorsBtn = document.getElementById("apply-colors-btn");
 
             // --- 3. VARIÁVEIS DE ESTADO GLOBAL ---
             let chat;
@@ -257,8 +257,39 @@
 
             // --- 4. FUNÇÕES DE UI E LÓGICA DO CHAT ---
 
+            /**
+             * NOVA FUNÇÃO DE DEBUG: Mostra uma mensagem de log diretamente na interface do chat.
+             * @param {string} message - A mensagem de log.
+             * @param {'info'|'success'|'danger'} status - O status do log para estilização.
+             */
+            function logToChat(message, status = "info") {
+                const icon = status === "danger" ? "alert-triangle" : "info";
+                const alertHtml = `
+            <div class="noxss-alert noxss-alert--${status}" style="max-width: 100%; width: 100%; margin-bottom: 0;">
+                <div class="noxss-alert__icon">
+                    <i data-feather="${icon}" class="noxss-icon"></i>
+                </div>
+                <div class="noxss-alert__content">
+                    <strong class="noxss-alert__title">Log de Debug</strong>
+                    ${message}
+                </div>
+            </div>
+        `;
+                const logWrapper = document.createElement("div");
+                logWrapper.style.padding = "0.5rem 1rem";
+                logWrapper.innerHTML = alertHtml;
+                chatContainer.appendChild(logWrapper);
+                logWrapper.scrollIntoView({ behavior: "smooth", block: "end" });
+                updateDynamicContent();
+            }
+
+            /**
+             * Atualiza bibliotecas que manipulam o DOM dinamicamente (Feather, KaTeX).
+             */
             function updateDynamicContent() {
-                if (window.feather) feather.replace({ class: "noxss-icon" });
+                if (window.feather) {
+                    feather.replace({ class: "noxss-icon" });
+                }
                 if (window.renderMathInElement) {
                     renderMathInElement(document.body, {
                         delimiters: [
@@ -270,6 +301,11 @@
                 }
             }
 
+            /**
+             * Cria e adiciona um novo balão de mensagem ao chat.
+             * @param {'user'|'bot'} sender - Quem está enviando a mensagem.
+             * @returns {HTMLElement} O elemento do balão de mensagem para inserção de conteúdo.
+             */
             function addMessage(sender) {
                 const messageWrapper = document.createElement("div");
                 messageWrapper.className = `chat-message chat-message--${sender}`;
@@ -281,6 +317,12 @@
                 return messageBubble;
             }
 
+            /**
+             * Processa uma string em Markdown, a converte para HTML e a injeta em um balão de mensagem.
+             * Também encontra e estiliza os blocos de código.
+             * @param {HTMLElement} bubbleElement - O balão de mensagem onde o conteúdo será renderizado.
+             * @param {string} markdownText - O texto em Markdown a ser processado.
+             */
             function processBotResponse(bubbleElement, markdownText) {
                 bubbleElement.innerHTML = marked.parse(markdownText);
                 bubbleElement.querySelectorAll("pre code").forEach(block => {
@@ -296,6 +338,11 @@
                 if (window.Noxss && Noxss.Typography) Noxss.Typography.initCodeBlocks();
             }
 
+            /**
+             * Converte um objeto File para o formato GenerativePart da API do Gemini.
+             * @param {File} file - O arquivo de imagem.
+             * @returns {Promise<object>} Uma promessa que resolve para o objeto no formato da API.
+             */
             async function fileToGenerativePart(file) {
                 const base64EncodedDataPromise = new Promise(resolve => {
                     const reader = new FileReader();
@@ -305,6 +352,10 @@
                 return { inlineData: { data: await base64EncodedDataPromise, mimeType: file.type } };
             }
 
+            /**
+             * Inicia uma nova sessão de chat com o Gemini.
+             * @param {Array} [history=[]] - O histórico de conversas para iniciar a sessão.
+             */
             function startNewChatSession(history = []) {
                 chat = model.startChat({
                     history,
@@ -318,6 +369,9 @@
                 });
             }
 
+            /**
+             * Manipula o envio do formulário de chat.
+             */
             async function handleChatSubmit(e) {
                 e.preventDefault();
                 const userMessageText = messageInput.value.trim();
@@ -380,13 +434,13 @@
                 }
             }
 
+            // ... (As funções de manipulação de imagem e histórico são utilitárias e podem ser agrupadas)
             function renderImagePreviews() {
                 imagePreviewContainer.innerHTML = "";
                 if (selectedImageFiles.length === 0) {
                     imagePreviewContainer.style.display = "none";
                     return;
                 }
-
                 selectedImageFiles.forEach((file, index) => {
                     const previewItem = document.createElement("div");
                     previewItem.className = "preview-item";
@@ -403,11 +457,9 @@
                     previewItem.append(img, removeBtn);
                     imagePreviewContainer.appendChild(previewItem);
                 });
-
                 imagePreviewContainer.style.display = "flex";
                 updateDynamicContent();
             }
-
             function handleImageSelected(event) {
                 Array.from(event.target.files).forEach(file => {
                     if (file.type.startsWith("image/")) selectedImageFiles.push(file);
@@ -415,17 +467,14 @@
                 renderImagePreviews();
                 event.target.value = null;
             }
-
             function removeImageFromSelection(index) {
                 selectedImageFiles.splice(index, 1);
                 renderImagePreviews();
             }
-
             function clearImageSelection() {
                 selectedImageFiles = [];
                 renderImagePreviews();
             }
-
             async function handleDownloadHistory() {
                 if (!chat) return;
                 const historyToSave = await chat.getHistory();
@@ -441,7 +490,6 @@
                 a.click();
                 URL.revokeObjectURL(a.href);
             }
-
             function handleHistoryFileSelected(event) {
                 const file = event.target.files[0];
                 if (!file) return;
@@ -460,7 +508,6 @@
                 reader.readAsText(file);
                 event.target.value = null;
             }
-
             function rebuildChatUIFromHistory(history) {
                 chatContainer.innerHTML = "";
                 processBotResponse(addMessage("bot"), "Olá! Um histórico de chat anterior foi carregado.");
@@ -479,31 +526,31 @@
              * Define as cores das barras do sistema nativo quando rodando no Cordova.
              */
             function setNativeUIColors() {
-                console.log("Função setNativeUIColors foi chamada, aguardando 300ms...");
+                logToChat("Tentando aplicar cores nativas...");
 
                 setTimeout(() => {
-                    console.log("Timeout de 300ms concluído. Verificando plugins...");
+                    const statusBarAvailable = window.StatusBar && typeof window.StatusBar.backgroundColorByHexString === "function";
+                    const navBarAvailable = window.navigationbar && typeof window.navigationbar.backgroundColorByHexString === "function";
 
-                    if (window.StatusBar && typeof window.StatusBar.backgroundColorByHexString === "function") {
-                        console.log("Plugin StatusBar encontrado. Aplicando cor...");
+                    if (statusBarAvailable) {
+                        logToChat("Plugin StatusBar encontrado. Aplicando cor #2e2e2e.", "success");
                         window.StatusBar.backgroundColorByHexString("#2e2e2e");
                     } else {
-                        console.error("ERRO: Plugin StatusBar não encontrado ou função indisponível.");
+                        logToChat("ERRO: Plugin StatusBar não está disponível no objeto `window`.", "danger");
                     }
 
-                    if (window.navigationbar && typeof window.navigationbar.backgroundColorByHexString === "function") {
-                        console.log("Plugin navigationbar encontrado. Aplicando cor...");
-                        // O segundo argumento 'false' garante que os ícones (voltar, home) fiquem claros
+                    if (navBarAvailable) {
+                        logToChat("Plugin navigationbar encontrado. Aplicando cor #2a2a2a.", "success");
                         window.navigationbar.backgroundColorByHexString("#2a2a2a", false);
                     } else {
-                        console.error("ERRO: Plugin navigationbar não encontrado ou função indisponível.");
+                        logToChat("ERRO: Plugin navigationbar não está disponível no objeto `window`.", "danger");
                     }
 
-                    console.log("Tentativa de aplicar cores da UI nativa concluída.");
+                    if (!statusBarAvailable && !navBarAvailable) {
+                        logToChat("Nenhum plugin de UI nativa foi detectado. O app parece estar rodando em um navegador comum.", "info");
+                    }
                 }, 300); // Atraso para garantir que a UI nativa esteja 100% pronta.
             }
-
-            window.setNativeUIColors = setNativeUIColors;
 
             /**
              * Função principal que inicializa a lógica do chatbot.
@@ -526,28 +573,26 @@
                     startNewChatSession([]);
                     processBotResponse(addMessage("bot"), "Olá! Sou o Sabedor, um chatbot com a tecnologia V-Oito. Como posso te ajudar hoje?");
 
+                    // Event Listeners
                     chatForm.addEventListener("submit", handleChatSubmit);
                     downloadBtn.addEventListener("click", handleDownloadHistory);
                     uploadBtn.addEventListener("click", () => historyFileInput.click());
                     historyFileInput.addEventListener("change", handleHistoryFileSelected);
                     imageUploadBtn.addEventListener("click", () => imageFileInput.click());
                     imageFileInput.addEventListener("change", handleImageSelected);
+                    applyColorsBtn.addEventListener("click", setNativeUIColors);
 
                     updateDynamicContent();
                     messageInput.focus();
                 } catch (error) {
                     console.error("Erro fatal na inicialização:", error);
-                    processBotResponse(addMessage("bot"), "<strong>Erro:</strong> Não foi possível configurar o assistente.");
+                    logToChat(`<strong>Erro na Inicialização:</strong> ${error.message}`, "danger");
                 }
             }
 
             // --- PONTO DE ENTRADA PRINCIPAL ---
             document.addEventListener("DOMContentLoaded", () => {
-                // 1. Inicia a lógica principal do chat (para web e mobile)
                 initializeChat();
-
-                // 2. Registra um listener para o evento 'deviceready' do Cordova.
-                //    Isso só será executado em um dispositivo, não no navegador.
                 document.addEventListener("deviceready", setNativeUIColors, false);
             });
         </script>
