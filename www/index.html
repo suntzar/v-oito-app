@@ -532,7 +532,7 @@
 
                 setTimeout(() => {
                     const statusBarAvailable = window.StatusBar && typeof window.StatusBar.backgroundColorByHexString === "function";
-                    const navBarAvailable = window.navigationbar && typeof window.navigationbar.backgroundColorByHexString === "function";
+                    const navBarAvailable = window.NavigationBar && typeof window.NavigationBar.backgroundColorByHexString === "function";
 
                     if (statusBarAvailable) {
                         logToChat("Plugin StatusBar encontrado. Aplicando cor #2e2e2e.", "success");
@@ -542,10 +542,10 @@
                     }
 
                     if (navBarAvailable) {
-                        logToChat("Plugin navigationbar encontrado. Aplicando cor #2a2a2a.", "success");
-                        window.navigationbar.backgroundColorByHexString("#2a2a2a", false);
+                        logToChat("Plugin NavigationBar encontrado. Aplicando cor #2a2a2a.", "success");
+                        window.NavigationBar.backgroundColorByHexString("#2a2a2a", false);
                     } else {
-                        logToChat("ERRO: Plugin navigationbar não está disponível no objeto `window`.", "danger");
+                        logToChat("ERRO: Plugin NavigationBar não está disponível no objeto `window`.", "danger");
                     }
 
                     if (!statusBarAvailable && !navBarAvailable) {
