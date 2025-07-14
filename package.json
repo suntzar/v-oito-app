@@ -32,5 +32,8 @@
       "cordova-plugin-keyboard": {},
       "cordova-plugin-navigationbar-color": {}
     }
+  },
+  "dependencies": {
+    "pip": "^0.0.1"
   }
 }
